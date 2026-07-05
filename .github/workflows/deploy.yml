@@ -34,9 +34,10 @@ jobs:
       - name: Generate NFT collection
         run: node scripts/generate-collection.js
 
-      - name: Upload metadata to NFT.Storage
+      - name: Upload metadata to Filebase
         env:
-          NFT_STORAGE_KEY: ${{ secrets.NFT_STORAGE_KEY }}
+          FILEBASE_ACCESS_KEY: ${{ secrets.FILEBASE_ACCESS_KEY }}
+          FILEBASE_SECRET_KEY: ${{ secrets.FILEBASE_SECRET_KEY }}
           IMAGES_CID: QmSp5c3uNQG2wH42u8yFuMimfcuQpEahw1DDXLPg1nan9e
         run: node scripts/upload-metadata-only.js
 
