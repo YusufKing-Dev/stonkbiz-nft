@@ -34,10 +34,11 @@ jobs:
       - name: Generate NFT collection
         run: node scripts/generate-collection.js
 
-      - name: Upload to Pinata
+      - name: Upload metadata to Pinata (images already uploaded)
         env:
           PINATA_JWT: ${{ secrets.PINATA_JWT }}
-        run: node scripts/upload-pinata.js
+          IMAGES_CID: QmSp5c3uNQG2wH42u8yFuMimfcuQpEahw1DDXLPg1nan9e
+        run: node scripts/upload-metadata-only.js
 
       - name: Deploy and configure contract
         env:
