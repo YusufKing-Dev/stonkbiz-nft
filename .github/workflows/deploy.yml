@@ -34,10 +34,11 @@ jobs:
       - name: Generate NFT collection
         run: node scripts/generate-collection.js
 
-      - name: Upload metadata to Filebase
+      - name: Upload metadata to Cloudinary
         env:
-          FILEBASE_ACCESS_KEY: ${{ secrets.FILEBASE_ACCESS_KEY }}
-          FILEBASE_SECRET_KEY: ${{ secrets.FILEBASE_SECRET_KEY }}
+          CLOUDINARY_CLOUD_NAME: ${{ secrets.CLOUDINARY_CLOUD_NAME }}
+          CLOUDINARY_API_KEY: ${{ secrets.CLOUDINARY_API_KEY }}
+          CLOUDINARY_API_SECRET: ${{ secrets.CLOUDINARY_API_SECRET }}
           IMAGES_CID: QmSp5c3uNQG2wH42u8yFuMimfcuQpEahw1DDXLPg1nan9e
         run: node scripts/upload-metadata-only.js
 
