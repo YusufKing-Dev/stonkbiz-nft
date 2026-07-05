@@ -11,42 +11,36 @@ jobs:
         env:
           PINATA_JWT: ${{ secrets.PINATA_JWT }}
         run: |
-          echo "Testing JWT..."
-          RESPONSE=$(curl -s --request GET \
-            --url "https://api.pinata.cloud/data/testAuthentication" \
-            --header "Authorization: Bearer $PINATA_JWT")
-          echo "Auth test: $RESPONSE"
-
           echo "Fetching pinned files..."
           DELETED=0
 
           while true; do
             LIST=$(curl -s --request GET \
-              --url "https://api.pinata.cloud/pinning/pinList?status=pinned&pageLimit=100" \
+              --url "https://api.pinata.cloud/v3/files?limit=100" \
               --header "Authorization: Bearer $PINATA_JWT")
-            
-            echo "Response: $LIST" | head -c 200
 
-            COUNT=$(echo $LIST | python3 -c "import sys,json; d=json.load(sys.stdin); print(len(d.get('rows',[])))" 2>/dev/null || echo "0")
-            echo "Found $COUNT files to delete"
+            echo "Sample response: $(echo $LIST | head -c 300)"
+
+            COUNT=$(echo $LIST | python3 -c "import sys,json; d=json.load(sys.stdin); print(len(d.get('data',{}).get('files',[])))" 2>/dev/null || echo "0")
+            echo "Found $COUNT files"
 
             if [ "$COUNT" = "0" ]; then
               break
             fi
 
-            HASHES=$(echo $LIST | python3 -c "import sys,json; d=json.load(sys.stdin); [print(r['ipfs_pin_hash']) for r in d.get('rows',[])]" 2>/dev/null)
+            IDS=$(echo $LIST | python3 -c "import sys,json; d=json.load(sys.stdin); [print(r['id']) for r in d.get('data',{}).get('files',[])]" 2>/dev/null)
 
-            while IFS= read -r HASH; do
-              if [ -n "$HASH" ]; then
+            while IFS= read -r ID; do
+              if [ -n "$ID" ]; then
                 curl -s --request DELETE \
-                  --url "https://api.pinata.cloud/pinning/unpin/$HASH" \
+                  --url "https://api.pinata.cloud/v3/files/$ID" \
                   --header "Authorization: Bearer $PINATA_JWT" > /dev/null
                 DELETED=$((DELETED + 1))
                 if [ $((DELETED % 20)) -eq 0 ]; then
                   echo "Deleted $DELETED files..."
                 fi
               fi
-            done <<< "$HASHES"
+            done <<< "$IDS"
           done
 
           echo "Total deleted: $DELETED"
