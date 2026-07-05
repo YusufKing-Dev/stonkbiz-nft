@@ -8,13 +8,17 @@
     "deploy:sepolia": "hardhat run scripts/deploy.js --network baseSepolia",
     "deploy:mainnet": "hardhat run scripts/deploy.js --network baseMainnet",
     "verify:sepolia": "hardhat verify --network baseSepolia",
-    "verify:mainnet": "hardhat verify --network baseMainnet"
+    "verify:mainnet": "hardhat verify --network baseMainnet",
+    "generate": "node scripts/generate-collection.js",
+    "upload": "node scripts/upload-pinata.js"
   },
   "devDependencies": {
     "@nomicfoundation/hardhat-toolbox": "^5.0.0",
     "hardhat": "^2.22.0"
   },
   "dependencies": {
-    "dotenv": "^16.4.0"
+    "dotenv": "^16.4.0",
+    "ethers": "^6.0.0",
+    "sharp": "^0.33.5"
   }
 }
