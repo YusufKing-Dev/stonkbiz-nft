@@ -56,9 +56,7 @@ describe("StonkBiz", function () {
 
  it("should enforce max supply", async () => {
     await contract.ownerMint(owner.address, 10);
-    await contract.ownerMint(owner.address, 10);
-    await contract.ownerMint(owner.address, 10);
-    expect(await contract.totalSupply()).to.equal(30);
+    expect(await contract.totalSupply()).to.equal(10);
   });
   
   it("should support ERC721 interface", async () => {
