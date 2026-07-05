@@ -25,7 +25,7 @@ function hmac(key, data, encoding) {
   return crypto.createHmac("sha256", key).update(data).digest(encoding || "buffer");
 }
 
-function sign(method, key, dateStamp, regionName, serviceName, stringToSign) {
+function sign(key, dateStamp, regionName, serviceName, stringToSign) {
   const kDate    = hmac("AWS4" + key, dateStamp);
   const kRegion  = hmac(kDate, regionName);
   const kService = hmac(kRegion, serviceName);
