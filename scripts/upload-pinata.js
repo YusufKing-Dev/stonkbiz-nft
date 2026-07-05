@@ -116,8 +116,8 @@ async function main() {
     return na - nb;
   });
 
-  const tDir = path.join(OUT, "_meta_tmp");
-  fs.mkdirSync(tmpDir, { recursive: true });
+  const tmpDir = path.join(OUTPUT_DIR, "_meta_tmp");
+fs.mkdirSync(tmpDir, { recursive: true });
 
   for (const f of metaFiles) {
     const data = JSON.parse(fs.readFileSync(path.join(META_DIR, f), "utf-8"));
