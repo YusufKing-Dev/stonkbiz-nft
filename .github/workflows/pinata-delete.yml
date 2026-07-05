@@ -11,44 +11,42 @@ jobs:
         env:
           PINATA_JWT: ${{ secrets.PINATA_JWT }}
         run: |
-          node << 'EOF'
-          const https = require("https");
+          echo "Testing JWT..."
+          RESPONSE=$(curl -s --request GET \
+            --url "https://api.pinata.cloud/data/testAuthentication" \
+            --header "Authorization: Bearer $PINATA_JWT")
+          echo "Auth test: $RESPONSE"
 
-          async function request(method, path, body) {
-            return new Promise((resolve, reject) => {
-              const req = https.request({
-                hostname: "api.pinata.cloud",
-                path,
-                method,
-                headers: {
-                  Authorization: `Bearer ${process.env.PINATA_JWT}`,
-                  "Content-Type": "application/json",
-                },
-              }, (res) => {
-                let data = "";
-                res.on("data", c => data += c);
-                res.on("end", () => resolve(JSON.parse(data)));
-              });
-              req.on("error", reject);
-              if (body) req.write(JSON.stringify(body));
-              req.end();
-            });
-          }
+          echo "Fetching pinned files..."
+          DELETED=0
 
-          async function main() {
-            let deleted = 0;
-            while (true) {
-              const res = await request("GET", "/pinning/pinList?status=pinned&pageLimit=100");
-              const rows = res.rows || [];
-              if (rows.length === 0) break;
-              for (const pin of rows) {
-                await request("DELETE", `/pinning/unpin/${pin.ipfs_pin_hash}`);
-                deleted++;
-                if (deleted % 50 === 0) console.log(`Deleted ${deleted} files...`);
-              }
-            }
-            console.log(`Done! Total deleted: ${deleted}`);
-          }
+          while true; do
+            LIST=$(curl -s --request GET \
+              --url "https://api.pinata.cloud/pinning/pinList?status=pinned&pageLimit=100" \
+              --header "Authorization: Bearer $PINATA_JWT")
+            
+            echo "Response: $LIST" | head -c 200
 
-          main().catch(e => { console.error(e); process.exit(1); });
-          EOF
+            COUNT=$(echo $LIST | python3 -c "import sys,json; d=json.load(sys.stdin); print(len(d.get('rows',[])))" 2>/dev/null || echo "0")
+            echo "Found $COUNT files to delete"
+
+            if [ "$COUNT" = "0" ]; then
+              break
+            fi
+
+            HASHES=$(echo $LIST | python3 -c "import sys,json; d=json.load(sys.stdin); [print(r['ipfs_pin_hash']) for r in d.get('rows',[])]" 2>/dev/null)
+
+            while IFS= read -r HASH; do
+              if [ -n "$HASH" ]; then
+                curl -s --request DELETE \
+                  --url "https://api.pinata.cloud/pinning/unpin/$HASH" \
+                  --header "Authorization: Bearer $PINATA_JWT" > /dev/null
+                DELETED=$((DELETED + 1))
+                if [ $((DELETED % 20)) -eq 0 ]; then
+                  echo "Deleted $DELETED files..."
+                fi
+              fi
+            done <<< "$HASHES"
+          done
+
+          echo "Total deleted: $DELETED"
