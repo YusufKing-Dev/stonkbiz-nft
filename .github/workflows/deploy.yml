@@ -34,9 +34,9 @@ jobs:
       - name: Generate NFT collection
         run: node scripts/generate-collection.js
 
-      - name: Upload metadata to Pinata (images already uploaded)
+      - name: Upload metadata to NFT.Storage
         env:
-          PINATA_JWT: ${{ secrets.PINATA_JWT }}
+          NFT_STORAGE_KEY: ${{ secrets.NFT_STORAGE_KEY }}
           IMAGES_CID: QmSp5c3uNQG2wH42u8yFuMimfcuQpEahw1DDXLPg1nan9e
         run: node scripts/upload-metadata-only.js
 
