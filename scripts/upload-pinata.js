@@ -116,7 +116,7 @@ async function main() {
     return na - nb;
   });
 
-  const tmpDir = path.join(META_DIR, "_updated");
+  const tDir = path.join(OUT, "_meta_tmp");
   fs.mkdirSync(tmpDir, { recursive: true });
 
   for (const f of metaFiles) {
