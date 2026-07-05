@@ -11,13 +11,9 @@ on:
         options:
           - baseSepolia
           - baseMainnet
-  push:
-    branches: [main]
-    # By default, push to main deploys to Base Sepolia (testnet).
-    # To deploy to mainnet, use workflow_dispatch.
 
 jobs:
-  deploy:
+  full-deploy:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -36,8 +32,22 @@ jobs:
       - name: Run tests
         run: npm test
 
-      - name: Deploy to ${{ github.event.inputs.network || 'baseSepolia' }}
+      - name: Generate NFT collection
+        run: node scripts/generate-collection.js
+
+      - name: Upload to Pinata
+        env:
+          PINATA_JWT: ${{ secrets.PINATA_JWT }}
+        run: node scripts/upload-pinata.js
+
+      - name: Deploy and configure contract
         env:
           PRIVATE_KEY: ${{ secrets.PRIVATE_KEY }}
           BASESCAN_API_KEY: ${{ secrets.BASESCAN_API_KEY }}
         run: npx hardhat run scripts/deploy.js --network ${{ github.event.inputs.network || 'baseSepolia' }}
+
+      - name: Upload generated files as artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: nft-output
+          path: output/
