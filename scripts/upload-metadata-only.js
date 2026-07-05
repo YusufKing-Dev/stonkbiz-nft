@@ -1,6 +1,6 @@
 /**
- * Uploads metadata to Filebase IPFS using S3-compatible API.
- * Usage: FILEBASE_ACCESS_KEY=x FILEBASE_SECRET_KEY=y node scripts/upload-metadata-only.js
+ * Uploads metadata JSON files to Cloudinary.
+ * Usage: CLOUDINARY_CLOUD_NAME=x CLOUDINARY_API_KEY=y CLOUDINARY_API_SECRET=z node scripts/upload-metadata-only.js
  */
 
 const fs     = require("fs");
@@ -8,97 +8,80 @@ const path   = require("path");
 const https  = require("https");
 const crypto = require("crypto");
 
-const OUTPUT_DIR          = path.resolve(__dirname, "..", "output");
-const META_DIR            = path.join(OUTPUT_DIR, "metadata");
-const IMAGES_CID          = process.env.IMAGES_CID || "QmSp5c3uNQG2wH42u8yFuMimfcuQpEahw1DDXLPg1nan9e";
-const FILEBASE_ACCESS_KEY = process.env.FILEBASE_ACCESS_KEY;
-const FILEBASE_SECRET_KEY = process.env.FILEBASE_SECRET_KEY;
-const BUCKET              = "stonkbiz-metadata";
-const ENDPOINT            = "s3.filebase.com";
+const OUTPUT_DIR            = path.resolve(__dirname, "..", "output");
+const META_DIR              = path.join(OUTPUT_DIR, "metadata");
+const IMAGES_CID            = process.env.IMAGES_CID || "QmSp5c3uNQG2wH42u8yFuMimfcuQpEahw1DDXLPg1nan9e";
+const CLOUD_NAME            = process.env.CLOUDINARY_CLOUD_NAME;
+const API_KEY               = process.env.CLOUDINARY_API_KEY;
+const API_SECRET            = process.env.CLOUDINARY_API_SECRET;
 
-if (!FILEBASE_ACCESS_KEY || !FILEBASE_SECRET_KEY) {
-  console.error("Missing FILEBASE_ACCESS_KEY or FILEBASE_SECRET_KEY");
+if (!CLOUD_NAME || !API_KEY || !API_SECRET) {
+  console.error("Missing Cloudinary credentials.");
   process.exit(1);
 }
 
-function hmac(key, data, encoding) {
-  return crypto.createHmac("sha256", key).update(data).digest(encoding || "buffer");
+function sleep(ms) {
+  return new Promise((r) => setTimeout(r, ms));
 }
 
-function sign(key, dateStamp, regionName, serviceName, stringToSign) {
-  const kDate    = hmac("AWS4" + key, dateStamp);
-  const kRegion  = hmac(kDate, regionName);
-  const kService = hmac(kRegion, serviceName);
-  const kSigning = hmac(kService, "aws4_request");
-  return hmac(kSigning, stringToSign, "hex");
-}
-
-function uploadFile(fileContent, fileName) {
+function uploadToCloudinary(fileContent, publicId) {
   return new Promise((resolve, reject) => {
-    const now         = new Date();
-    const amzDate     = now.toISOString().replace(/[:-]|\.\d{3}/g, "").slice(0, 15) + "Z";
-    const dateStamp   = amzDate.slice(0, 8);
-    const objectKey   = `metadata/${fileName}`;
-    const contentType = "application/json";
-    const payloadHash = crypto.createHash("sha256").update(fileContent).digest("hex");
+    const timestamp = Math.floor(Date.now() / 1000).toString();
+    const folder    = "stonkbiz-metadata";
 
-    const canonicalHeaders =
-      `content-type:${contentType}\n` +
-      `host:${ENDPOINT}\n` +
-      `x-amz-content-sha256:${payloadHash}\n` +
-      `x-amz-date:${amzDate}\n`;
+    // Generate signature
+    const sigStr   = `folder=${folder}&public_id=${publicId}&resource_type=raw&timestamp=${timestamp}${API_SECRET}`;
+    const signature = crypto.createHash("sha256").update(sigStr).digest("hex");
 
-    const signedHeaders = "content-type;host;x-amz-content-sha256;x-amz-date";
+    const boundary  = `----FormBoundary${Math.random().toString(36).slice(2)}`;
+    const fileB64   = fileContent.toString("base64");
 
-    const canonicalRequest =
-      `PUT\n/${BUCKET}/${objectKey}\n\n${canonicalHeaders}\n${signedHeaders}\n${payloadHash}`;
+    // Build multipart body
+    const parts = [
+      `--${boundary}\r\nContent-Disposition: form-data; name="file"\r\n\r\ndata:application/json;base64,${fileB64}`,
+      `--${boundary}\r\nContent-Disposition: form-data; name="public_id"\r\n\r\n${publicId}`,
+      `--${boundary}\r\nContent-Disposition: form-data; name="folder"\r\n\r\n${folder}`,
+      `--${boundary}\r\nContent-Disposition: form-data; name="resource_type"\r\n\r\nraw`,
+      `--${boundary}\r\nContent-Disposition: form-data; name="timestamp"\r\n\r\n${timestamp}`,
+      `--${boundary}\r\nContent-Disposition: form-data; name="api_key"\r\n\r\n${API_KEY}`,
+      `--${boundary}\r\nContent-Disposition: form-data; name="signature"\r\n\r\n${signature}`,
+      `--${boundary}--`,
+    ];
+    const body = Buffer.from(parts.join("\r\n"), "utf-8");
 
-    const algorithm      = "AWS4-HMAC-SHA256";
-    const credentialScope = `${dateStamp}/us-east-1/s3/aws4_request`;
-    const stringToSign   =
-      `${algorithm}\n${amzDate}\n${credentialScope}\n` +
-      crypto.createHash("sha256").update(canonicalRequest).digest("hex");
-
-    const signature = sign(FILEBASE_SECRET_KEY, dateStamp, "us-east-1", "s3", stringToSign);
-    const authorization =
-      `${algorithm} Credential=${FILEBASE_ACCESS_KEY}/${credentialScope}, ` +
-      `SignedHeaders=${signedHeaders}, Signature=${signature}`;
-
-    const options = {
-      hostname: ENDPOINT,
-      path: `/${BUCKET}/${objectKey}`,
-      method: "PUT",
-      headers: {
-        "Content-Type":          contentType,
-        "Content-Length":        fileContent.length,
-        "x-amz-date":            amzDate,
-        "x-amz-content-sha256":  payloadHash,
-        Authorization:           authorization,
+    const req = https.request(
+      {
+        hostname: "api.cloudinary.com",
+        path: `/v1_1/${CLOUD_NAME}/raw/upload`,
+        method: "POST",
+        headers: {
+          "Content-Type": `multipart/form-data; boundary=${boundary}`,
+          "Content-Length": body.length,
+        },
       },
-    };
-
-    const req = https.request(options, (res) => {
-      let data = "";
-      res.on("data", (c) => (data += c));
-      res.on("end", () => {
-        const cid = res.headers["x-amz-meta-cid"] || null;
-        if (res.statusCode >= 200 && res.statusCode < 300) {
-          resolve({ ok: true, cid });
-        } else {
-          console.error(`  Failed ${fileName} (${res.statusCode}): ${data}`);
-          resolve({ ok: false });
-        }
-      });
-    });
+      (res) => {
+        let data = "";
+        res.on("data", (c) => (data += c));
+        res.on("end", () => {
+          try {
+            const parsed = JSON.parse(data);
+            if (parsed.secure_url) {
+              resolve({ ok: true, url: parsed.secure_url });
+            } else {
+              console.error(`  Failed ${publicId}:`, data.slice(0, 200));
+              resolve({ ok: false });
+            }
+          } catch {
+            reject(new Error(data));
+          }
+        });
+      }
+    );
 
     req.on("error", reject);
-    req.write(fileContent);
+    req.write(body);
     req.end();
   });
-}
-
-async function sleep(ms) {
-  return new Promise((r) => setTimeout(r, ms));
 }
 
 async function main() {
@@ -117,8 +100,8 @@ async function main() {
   });
 
   for (const f of metaFiles) {
-    const data = JSON.parse(fs.readFileSync(path.join(META_DIR, f), "utf-8"));
-    data.image = `ipfs://${IMAGES_CID}/${f.replace(".json", ".png")}`;
+    const data  = JSON.parse(fs.readFileSync(path.join(META_DIR, f), "utf-8"));
+    data.image  = `ipfs://${IMAGES_CID}/${f.replace(".json", ".png")}`;
     fs.writeFileSync(path.join(tmpDir, f), JSON.stringify(data, null, 2));
   }
 
@@ -127,41 +110,53 @@ async function main() {
   fs.renameSync(tmpDir, META_DIR);
   console.log(`Updated ${metaFiles.length} metadata files.`);
 
-  // ── Upload to Filebase ─────────────────────────────────────
-  console.log("Uploading metadata to Filebase...");
+  // ── Upload to Cloudinary ───────────────────────────────────
+  console.log("Uploading metadata to Cloudinary...");
   const files = fs.readdirSync(META_DIR).sort((a, b) => {
     return parseInt(a.split(".")[0]) - parseInt(b.split(".")[0]);
   });
 
-  let uploaded = 0;
-  let lastCid  = null;
+  let uploaded  = 0;
+  let failed    = 0;
+  let baseUrl   = null;
 
   for (const f of files) {
     const fileContent = fs.readFileSync(path.join(META_DIR, f));
-    const result      = await uploadFile(fileContent, f);
-    if (result.ok && result.cid) lastCid = result.cid;
-    uploaded++;
-    if (uploaded % 200 === 0 || uploaded === files.length) {
-      console.log(`  ${uploaded}/${files.length} uploaded`);
+    const publicId    = f.replace(".json", "");
+    const result      = await uploadToCloudinary(fileContent, publicId);
+
+    if (result.ok) {
+      uploaded++;
+      if (!baseUrl) {
+        // Derive base URL from first successful upload
+        baseUrl = result.url.replace(`/${publicId}`, "").replace(/\/[^/]+$/, "");
+      }
+    } else {
+      failed++;
     }
-    await sleep(50);
+
+    if ((uploaded + failed) % 200 === 0 || (uploaded + failed) === files.length) {
+      console.log(`  ${uploaded + failed}/${files.length} processed (${failed} failed)`);
+    }
+
+    await sleep(100);
   }
 
-  // ── Get folder CID from Filebase ───────────────────────────
-  console.log("\nFetching folder CID from Filebase...");
-  // The CID for the folder is available via the bucket's IPFS CID
-  // We'll save what we have and print instructions
-  const cidsPath = path.join(OUTPUT_DIR, "cids.json");
-  fs.writeFileSync(cidsPath, JSON.stringify({
-    imagesCid:   IMAGES_CID,
-    metadataCid: lastCid || "CHECK_FILEBASE_DASHBOARD",
-  }, null, 2));
+  // Save results
+  const cloudBaseUrl = `https://res.cloudinary.com/${CLOUD_NAME}/raw/upload/stonkbiz-metadata/`;
+  fs.writeFileSync(
+    path.join(OUTPUT_DIR, "cids.json"),
+    JSON.stringify({
+      imagesCid: IMAGES_CID,
+      metadataBaseUrl: cloudBaseUrl,
+    }, null, 2)
+  );
 
   console.log(`\n=== Done! ===`);
-  console.log(`Images CID:   ipfs://${IMAGES_CID}`);
-  console.log(`Last file CID: ${lastCid}`);
-  console.log(`Check Filebase dashboard for the folder CID under your bucket.`);
-  console.log(`Base URI for contract: ipfs://<FOLDER_CID>/`);
+  console.log(`Uploaded: ${uploaded}, Failed: ${failed}`);
+  console.log(`Images CID:      ipfs://${IMAGES_CID}`);
+  console.log(`Metadata Base URL: ${cloudBaseUrl}`);
+  console.log(`Base URI for contract: ${cloudBaseUrl}`);
 }
 
 main().catch((e) => {
