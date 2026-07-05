@@ -55,7 +55,8 @@ describe("StonkBiz", function () {
   });
 
   it("should enforce max supply", async () => {
-    await contract.ownerMint(owner.address, 3444);
+    await contract.ownerMint(owner.address, 100);
+    await contract.ownerMint(owner.address, 3344);
     await expect(
       contract.ownerMint(owner.address, 1)
     ).to.be.revertedWith("sold out");
