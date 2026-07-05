@@ -1,8 +1,6 @@
 /**
- * Uploads ONLY metadata to Pinata using an already-uploaded images CID.
- * Run this when images are already on IPFS.
- * 
- * Usage: PINATA_JWT=your_jwt IMAGES_CID=QmXxx node scripts/upload-metadata-only.js
+ * Uploads metadata to NFT.Storage using an already-uploaded images CID.
+ * Usage: NFT_STORAGE_KEY=your_key IMAGES_CID=QmXxx node scripts/upload-metadata-only.js
  */
 
 const fs   = require("fs");
@@ -11,64 +9,53 @@ const https = require("https");
 
 const OUTPUT_DIR = path.resolve(__dirname, "..", "output");
 const META_DIR   = path.join(OUTPUT_DIR, "metadata");
-const PINATA_JWT = process.env.PINATA_JWT;
+const NFT_STORAGE_KEY = process.env.NFT_STORAGE_KEY;
 const IMAGES_CID = process.env.IMAGES_CID || "QmSp5c3uNQG2wH42u8yFuMimfcuQpEahw1DDXLPg1nan9e";
 
-if (!PINATA_JWT) {
-  console.error("Missing PINATA_JWT env var.");
+if (!NFT_STORAGE_KEY) {
+  console.error("Missing NFT_STORAGE_KEY env var.");
   process.exit(1);
 }
 
 console.log(`Using images CID: ipfs://${IMAGES_CID}`);
 
-function pinataUpload(filePath, fileName) {
+function uploadToNFTStorage(fileData, fileName) {
   return new Promise((resolve, reject) => {
-    const fileData = fs.readFileSync(filePath);
-    const boundary = `----FormBoundary${Math.random().toString(36).slice(2)}`;
-
-    const header = Buffer.from(
-      `--${boundary}\r\n` +
-      `Content-Disposition: form-data; name="file"; filename="${fileName}"\r\n` +
-      `Content-Type: application/json\r\n\r\n`,
-      "utf-8"
-    );
-    const footer = Buffer.from(`\r\n--${boundary}--\r\n`, "utf-8");
-    const totalLength = header.length + fileData.length + footer.length;
-
-    const req = https.request(
-      {
-        hostname: "api.pinata.cloud",
-        path: "/pinning/pinFileToIPFS",
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${PINATA_JWT}`,
-          "Content-Type": `multipart/form-data; boundary=${boundary}`,
-          "Content-Length": totalLength,
-        },
+    const options = {
+      hostname: "api.nft.storage",
+      path: "/upload",
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${NFT_STORAGE_KEY}`,
+        "Content-Type": "application/json",
+        "Content-Length": fileData.length,
       },
-      (res) => {
-        let data = "";
-        res.on("data", (chunk) => (data += chunk));
-        res.on("end", () => {
-          try {
-            const parsed = JSON.parse(data);
-            if (!parsed.IpfsHash) {
-              console.error(`  Upload failed for ${fileName}:`, data);
-            }
-            resolve(parsed);
-          } catch {
-            reject(new Error(data));
+    };
+
+    const req = https.request(options, (res) => {
+      let data = "";
+      res.on("data", (chunk) => (data += chunk));
+      res.on("end", () => {
+        try {
+          const parsed = JSON.parse(data);
+          if (!parsed.ok) {
+            console.error(`  Upload failed for ${fileName}:`, data);
           }
-        });
-      }
-    );
+          resolve(parsed);
+        } catch {
+          reject(new Error(data));
+        }
+      });
+    });
 
     req.on("error", reject);
-    req.write(header);
     req.write(fileData);
-    req.write(footer);
     req.end();
   });
+}
+
+async function sleep(ms) {
+  return new Promise((r) => setTimeout(r, ms));
 }
 
 async function main() {
@@ -101,32 +88,31 @@ async function main() {
 
   console.log(`Updated ${metaFiles.length} metadata files.`);
 
-  // ── Upload metadata to Pinata ─────────────────────────────
-  console.log("Uploading metadata to Pinata...");
+  // ── Upload metadata to NFT.Storage one by one ─────────────
+  console.log("Uploading metadata to NFT.Storage...");
   const files = fs.readdirSync(META_DIR).sort((a, b) => {
     return parseInt(a.split(".")[0]) - parseInt(b.split(".")[0]);
   });
 
-  const batchSize = 10;
   let uploaded = 0;
   let lastCid = null;
 
-  for (let i = 0; i < files.length; i += batchSize) {
-    const batch = files.slice(i, i + batchSize);
-    const results = await Promise.all(
-      batch.map((f) => pinataUpload(path.join(META_DIR, f), `metadata/${f}`))
-    );
-    for (const r of results) {
-      if (r && r.IpfsHash) lastCid = r.IpfsHash;
+  for (const f of files) {
+    const fileData = fs.readFileSync(path.join(META_DIR, f));
+    const result = await uploadToNFTStorage(fileData, f);
+    if (result && result.value && result.value.cid) {
+      lastCid = result.value.cid;
     }
-    uploaded += batch.length;
-    if (uploaded % 200 === 0 || uploaded === files.length) {
+    uploaded++;
+    if (uploaded % 100 === 0 || uploaded === files.length) {
       console.log(`  ${uploaded}/${files.length} uploaded`);
     }
+    // Small delay to avoid rate limiting
+    await sleep(100);
   }
 
   if (!lastCid) {
-    throw new Error("No valid metadata CID returned. Check Pinata storage limits or JWT.");
+    throw new Error("No valid metadata CID returned. Check NFT_STORAGE_KEY.");
   }
 
   // Save CIDs
@@ -145,3 +131,4 @@ main().catch((e) => {
   console.error(e);
   process.exit(1);
 });
+
