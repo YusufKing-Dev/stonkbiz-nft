@@ -34,13 +34,20 @@ jobs:
       - name: Generate NFT collection
         run: node scripts/generate-collection.js
 
-      - name: Upload metadata to Cloudinary
+      - name: Prepare metadata for GitHub Pages
         env:
-          CLOUDINARY_CLOUD_NAME: ${{ secrets.CLOUDINARY_CLOUD_NAME }}
-          CLOUDINARY_API_KEY: ${{ secrets.CLOUDINARY_API_KEY }}
-          CLOUDINARY_API_SECRET: ${{ secrets.CLOUDINARY_API_SECRET }}
           IMAGES_CID: QmSp5c3uNQG2wH42u8yFuMimfcuQpEahw1DDXLPg1nan9e
         run: node scripts/upload-metadata-only.js
+
+      - name: Commit metadata to repository
+        run: |
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+          git add docs/
+          git diff --staged --quiet || git commit -m "Add generated metadata for GitHub Pages"
+          git push
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Deploy and configure contract
         env:
