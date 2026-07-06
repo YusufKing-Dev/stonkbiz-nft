@@ -11,7 +11,10 @@ on:
         options:
           - baseSepolia
           - baseMainnet
+permissions:
+  contents: write
 
+  
 jobs:
   full-deploy:
     runs-on: ubuntu-latest
