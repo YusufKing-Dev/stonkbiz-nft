@@ -46,10 +46,11 @@ jobs:
         run: |
           git config --global user.name "github-actions[bot]"
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
+          git fetch origin main
+          git reset --hard origin/main
           git add docs/
           git diff --staged --quiet || git commit -m "Add generated metadata for GitHub Pages"
-          git pull --rebase origin main
-          git push
+          git push origin main
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
