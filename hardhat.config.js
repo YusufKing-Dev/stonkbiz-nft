@@ -1,8 +1,9 @@
 require("@nomicfoundation/hardhat-toolbox");
 require("dotenv").config();
 
-const PRIVATE_KEY = process.env.PRIVATE_KEY || "";
+const PRIVATE_KEY      = process.env.PRIVATE_KEY || "";
 const BASESCAN_API_KEY = process.env.BASESCAN_API_KEY || "";
+const ETHERSCAN_API_KEY = process.env.ETHERSCAN_API_KEY || "";
 
 module.exports = {
   solidity: {
@@ -14,9 +15,9 @@ module.exports = {
   networks: {
     hardhat: {},
     baseSepolia: {
-      url: "https://sepolia.base.org",
+      url: "https://ethereum-sepolia-rpc.publicnode.com",
+      chainId: 11155111,
       accounts: PRIVATE_KEY ? [PRIVATE_KEY] : [],
-      gasPrice: 100000000, // 0.1 gwei
     },
     baseMainnet: {
       url: "https://mainnet.base.org",
@@ -25,18 +26,10 @@ module.exports = {
   },
   etherscan: {
     apiKey: {
-      baseSepolia: BASESCAN_API_KEY,
+      sepolia: ETHERSCAN_API_KEY,
       baseMainnet: BASESCAN_API_KEY,
     },
     customChains: [
-      {
-        network: "baseSepolia",
-        chainId: 84532,
-        urls: {
-          apiURL: "https://api-sepolia.basescan.org/api",
-          browserURL: "https://sepolia.basescan.org",
-        },
-      },
       {
         network: "baseMainnet",
         chainId: 8453,
