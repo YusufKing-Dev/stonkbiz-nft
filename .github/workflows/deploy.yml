@@ -11,15 +11,18 @@ on:
         options:
           - baseSepolia
           - baseMainnet
+
 permissions:
   contents: write
 
-  
 jobs:
   full-deploy:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
 
       - uses: actions/setup-node@v4
         with:
@@ -46,8 +49,7 @@ jobs:
         run: |
           git config --global user.name "github-actions[bot]"
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
-          git fetch origin main
-          git reset --hard origin/main
+          git pull origin main --rebase
           git add docs/
           git diff --staged --quiet || git commit -m "Add generated metadata for GitHub Pages"
           git push origin main
