@@ -20,9 +20,6 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-          token: ${{ secrets.GITHUB_TOKEN }}
 
       - uses: actions/setup-node@v4
         with:
@@ -45,17 +42,6 @@ jobs:
           IMAGES_CID: QmSp5c3uNQG2wH42u8yFuMimfcuQpEahw1DDXLPg1nan9e
         run: node scripts/upload-metadata-only.js
 
-      - name: Commit metadata to repository
-        run: |
-          git config --global user.name "github-actions[bot]"
-          git config --global user.email "github-actions[bot]@users.noreply.github.com"
-          git pull origin main --rebase
-          git add docs/
-          git diff --staged --quiet || git commit -m "Add generated metadata for GitHub Pages"
-          git push origin main
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
       - name: Deploy and configure contract
         env:
           PRIVATE_KEY: ${{ secrets.PRIVATE_KEY }}
@@ -66,4 +52,4 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: nft-output
-          path: output/
+          path: docs/
