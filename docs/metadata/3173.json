@@ -1,0 +1,19 @@
+{
+  "name": "StonkBiz #3173",
+  "description": "StonkBiz — Base L2 NFT Collection",
+  "image": "ipfs://QmSp5c3uNQG2wH42u8yFuMimfcuQpEahw1DDXLPg1nan9e/3173.png",
+  "attributes": [
+    {
+      "trait_type": "Background",
+      "value": "Green"
+    },
+    {
+      "trait_type": "Body",
+      "value": "Common"
+    },
+    {
+      "trait_type": "Accessory",
+      "value": "None"
+    }
+  ]
+}
