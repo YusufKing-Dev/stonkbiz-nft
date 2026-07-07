@@ -1,0 +1,19 @@
+{
+  "name": "StonkBiz #3262",
+  "description": "StonkBiz — Base L2 NFT Collection",
+  "image": "ipfs://QmSp5c3uNQG2wH42u8yFuMimfcuQpEahw1DDXLPg1nan9e/3262.png",
+  "attributes": [
+    {
+      "trait_type": "Background",
+      "value": "Gold"
+    },
+    {
+      "trait_type": "Body",
+      "value": "Common"
+    },
+    {
+      "trait_type": "Accessory",
+      "value": "Glasses"
+    }
+  ]
+}
