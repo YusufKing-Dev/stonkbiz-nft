@@ -159,7 +159,10 @@ async function main() {
   fs.mkdirSync(imgDir, { recursive: true });
   fs.mkdirSync(metaDir, { recursive: true });
 
-  const baseBuffer = fs.readFileSync(basePath);
+  const baseBuffer = await sharp(fs.readFileSync(basePath))
+  .resize(IMG_SIZE, IMG_SIZE, { fit: 'contain' })
+  .png()
+  .toBuffer();
 
   console.log(`Generating ${MAX_SUPPLY} tokens...`);
 
