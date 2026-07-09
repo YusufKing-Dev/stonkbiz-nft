@@ -315,6 +315,82 @@
     border-top: 1px solid var(--line);
   }
   footer a { color: var(--gold); text-decoration: none; }
+
+  /* ---- Gallery ---- */
+  .gallery-wrap {
+    max-width: 1040px;
+    margin: 0 auto;
+    padding: 0 24px 64px;
+  }
+  .gallery-head {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    margin-bottom: 18px;
+  }
+  .gallery-title {
+    font-family: var(--display);
+    font-size: 20px;
+    letter-spacing: 0.5px;
+  }
+  .gallery-title .accent { color: var(--gold); }
+  .gallery-sub {
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--text-dim);
+  }
+  .gallery-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+    gap: 14px;
+  }
+  .g-card {
+    background: var(--panel);
+    border: 1px solid var(--line);
+    border-radius: 4px;
+    overflow: hidden;
+  }
+  .g-card img {
+    width: 100%;
+    aspect-ratio: 1 / 1;
+    display: block;
+    background: var(--panel-2);
+    object-fit: cover;
+  }
+  .g-card-info {
+    padding: 8px 10px;
+    font-family: var(--mono);
+  }
+  .g-card-id {
+    font-size: 11px;
+    color: var(--gold);
+    margin-bottom: 4px;
+  }
+  .g-card-trait {
+    font-size: 10px;
+    color: var(--text-dim);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .g-empty {
+    font-family: var(--mono);
+    font-size: 12px;
+    color: var(--text-dim);
+    padding: 20px 0;
+  }
+  .g-skeleton {
+    background: linear-gradient(90deg, var(--panel) 0%, var(--panel-2) 50%, var(--panel) 100%);
+    background-size: 200% 100%;
+    animation: shimmer 1.4s infinite;
+  }
+  @keyframes shimmer {
+    0% { background-position: 200% 0; }
+    100% { background-position: -200% 0; }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .g-skeleton { animation: none; }
+  }
 </style>
 </head>
 <body>
@@ -389,6 +465,14 @@
   </div>
 </section>
 
+<section class="gallery-wrap">
+  <div class="gallery-head">
+    <div class="gallery-title">RECENTLY <span class="accent">MINTED</span></div>
+    <div class="gallery-sub" id="gallerySub">loading...</div>
+  </div>
+  <div class="gallery-grid" id="galleryGrid"></div>
+</section>
+
 <footer>
   CONTRACT <a id="contractLink" href="#" target="_blank">0x4269...92D3</a> · VERIFIED ON BASESCAN
 </footer>
@@ -413,6 +497,9 @@ let mintPriceWei = 0n;
 let maxPerTx = 10;
 let maxSupply = 3444;
 
+const METADATA_BASE = "https://yusufking-dev.github.io/stonkbiz-nft/metadata/";
+const GALLERY_COUNT = 12;
+
 const els = {
   tickerTrack: document.getElementById('tickerTrack'),
   priceStat: document.getElementById('priceStat'),
@@ -425,6 +512,8 @@ const els = {
   actionBtn: document.getElementById('actionBtn'),
   console: document.getElementById('console'),
   contractLink: document.getElementById('contractLink'),
+  galleryGrid: document.getElementById('galleryGrid'),
+  gallerySub: document.getElementById('gallerySub'),
 };
 
 els.contractLink.href = `https://basescan.org/address/${CONTRACT_ADDRESS}`;
@@ -476,6 +565,7 @@ async function loadReadOnlyData() {
 
     buildTicker(ethers.formatEther(price), supply.toString(), max.toString(), active);
     updateTotal();
+    loadGallery(Number(supply));
 
     if (!active) {
       els.actionBtn.disabled = true;
@@ -484,6 +574,55 @@ async function loadReadOnlyData() {
   } catch (e) {
     log('failed to load contract data: ' + e.message, 'err');
   }
+}
+
+async function loadGallery(supply) {
+  if (supply === 0) {
+    els.gallerySub.textContent = 'no mints yet';
+    els.galleryGrid.innerHTML = '<div class="g-empty">be the first to mint — this space is waiting for you.</div>';
+    return;
+  }
+
+  const count = Math.min(GALLERY_COUNT, supply);
+  els.gallerySub.textContent = `showing latest ${count} of ${supply}`;
+
+  // Show skeleton placeholders while fetching
+  els.galleryGrid.innerHTML = Array.from({ length: count }).map(() =>
+    `<div class="g-card"><div class="g-skeleton" style="aspect-ratio:1/1;"></div></div>`
+  ).join('');
+
+  // Most recently minted = highest tokenIds (0-indexed, so latest is supply-1 downward)
+  const ids = [];
+  for (let i = supply - 1; i >= 0 && ids.length < count; i--) {
+    ids.push(i);
+  }
+
+  const cards = await Promise.all(ids.map(async (id) => {
+    try {
+      const res = await fetch(`${METADATA_BASE}${id}.json`);
+      if (!res.ok) throw new Error('not found');
+      const meta = await res.json();
+      const bg = meta.attributes?.find(a => a.trait_type === 'Background')?.value || '—';
+      const body = meta.attributes?.find(a => a.trait_type === 'Body')?.value || '—';
+      const acc = meta.attributes?.find(a => a.trait_type === 'Accessory')?.value || '—';
+      return `
+        <div class="g-card">
+          <img src="${meta.image}" alt="${meta.name}" loading="lazy" onerror="this.style.background='#1e2430'">
+          <div class="g-card-info">
+            <div class="g-card-id">#${id}</div>
+            <div class="g-card-trait">${bg} · ${body}</div>
+            <div class="g-card-trait">${acc}</div>
+          </div>
+        </div>`;
+    } catch (e) {
+      return `
+        <div class="g-card">
+          <div style="aspect-ratio:1/1; background:var(--panel-2); display:flex; align-items:center; justify-content:center; color:var(--text-dim); font-family:var(--mono); font-size:11px;">#${id}</div>
+        </div>`;
+    }
+  }));
+
+  els.galleryGrid.innerHTML = cards.join('');
 }
 
 function buildTicker(price, supply, max, active) {
@@ -583,3 +722,4 @@ setInterval(loadReadOnlyData, 30000);
 
 </body>
 </html>
+
