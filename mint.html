@@ -1,0 +1,585 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>StonkBiz — Mint</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/ethers/6.13.4/ethers.umd.min.js"></script>
+<style>
+  :root {
+    --bg: #0b0e14;
+    --panel: #12161f;
+    --panel-2: #171c27;
+    --line: #262c3a;
+    --gold: #d4af37;
+    --gold-dim: #8a7226;
+    --green: #00c896;
+    --red: #ff5566;
+    --text: #e8e6e0;
+    --text-dim: #7d8494;
+    --mono: 'JetBrains Mono', 'Courier New', monospace;
+    --display: 'Archivo Black', 'Arial Black', sans-serif;
+  }
+
+  * { box-sizing: border-box; }
+
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    min-height: 100vh;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .ticker-track { animation: none !important; }
+  }
+
+  /* ---- Ticker bar ---- */
+  .ticker-wrap {
+    background: var(--panel-2);
+    border-bottom: 1px solid var(--line);
+    overflow: hidden;
+    white-space: nowrap;
+    padding: 8px 0;
+  }
+  .ticker-track {
+    display: inline-block;
+    animation: scroll-left 28s linear infinite;
+    font-family: var(--mono);
+    font-size: 13px;
+    letter-spacing: 0.5px;
+  }
+  .ticker-track span {
+    margin-right: 48px;
+    color: var(--text-dim);
+  }
+  .ticker-track .up { color: var(--green); }
+  .ticker-track .gold { color: var(--gold); }
+  @keyframes scroll-left {
+    0% { transform: translateX(0); }
+    100% { transform: translateX(-50%); }
+  }
+
+  /* ---- Header ---- */
+  header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 20px 24px;
+    border-bottom: 1px solid var(--line);
+  }
+  .logo {
+    font-family: var(--display);
+    font-size: 20px;
+    letter-spacing: 0.5px;
+    color: var(--text);
+  }
+  .logo span { color: var(--gold); }
+  .network-pill {
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--green);
+    border: 1px solid var(--green);
+    border-radius: 3px;
+    padding: 4px 10px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .dot {
+    width: 6px; height: 6px;
+    background: var(--green);
+    border-radius: 50%;
+    display: inline-block;
+  }
+
+  /* ---- Hero ---- */
+  .hero {
+    max-width: 1040px;
+    margin: 0 auto;
+    padding: 56px 24px 40px;
+    display: grid;
+    grid-template-columns: 1.1fr 0.9fr;
+    gap: 48px;
+    align-items: center;
+  }
+  @media (max-width: 760px) {
+    .hero { grid-template-columns: 1fr; padding-top: 32px; gap: 32px; }
+  }
+
+  .eyebrow {
+    font-family: var(--mono);
+    font-size: 12px;
+    color: var(--gold);
+    letter-spacing: 2px;
+    margin-bottom: 14px;
+  }
+  h1 {
+    font-family: var(--display);
+    font-size: clamp(40px, 7vw, 64px);
+    line-height: 0.95;
+    margin: 0 0 18px;
+    letter-spacing: -1px;
+  }
+  h1 .accent { color: var(--gold); }
+  .sub {
+    color: var(--text-dim);
+    font-size: 16px;
+    line-height: 1.6;
+    max-width: 460px;
+    margin-bottom: 28px;
+  }
+
+  .stat-row {
+    display: flex;
+    gap: 28px;
+    font-family: var(--mono);
+  }
+  .stat-label {
+    font-size: 11px;
+    color: var(--text-dim);
+    letter-spacing: 1px;
+    margin-bottom: 4px;
+  }
+  .stat-value {
+    font-size: 20px;
+    color: var(--text);
+  }
+  .stat-value.gold { color: var(--gold); }
+
+  .portrait-frame {
+    position: relative;
+    border: 1px solid var(--line);
+    background: var(--panel);
+    border-radius: 4px;
+    padding: 14px;
+  }
+  .portrait-frame::before,
+  .portrait-frame::after {
+    content: '';
+    position: absolute;
+    width: 16px; height: 16px;
+    border: 2px solid var(--gold);
+  }
+  .portrait-frame::before { top: -1px; left: -1px; border-right: none; border-bottom: none; }
+  .portrait-frame::after { bottom: -1px; right: -1px; border-left: none; border-top: none; }
+  .portrait-frame img {
+    width: 100%;
+    display: block;
+    border-radius: 2px;
+    background: #d4af37;
+  }
+  .portrait-caption {
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--text-dim);
+    margin-top: 10px;
+    display: flex;
+    justify-content: space-between;
+  }
+
+  /* ---- Mint panel ---- */
+  .panel-wrap {
+    max-width: 1040px;
+    margin: 0 auto;
+    padding: 0 24px 64px;
+  }
+  .ticket {
+    background: var(--panel);
+    border: 1px solid var(--line);
+    border-radius: 6px;
+    overflow: hidden;
+  }
+  .ticket-head {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 16px 22px;
+    border-bottom: 1px dashed var(--line);
+    font-family: var(--mono);
+    font-size: 12px;
+    color: var(--text-dim);
+    letter-spacing: 1px;
+  }
+  .ticket-body {
+    padding: 24px 22px;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 28px;
+  }
+  @media (max-width: 640px) {
+    .ticket-body { grid-template-columns: 1fr; }
+  }
+
+  .field-label {
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--text-dim);
+    letter-spacing: 1px;
+    margin-bottom: 10px;
+  }
+
+  .qty-control {
+    display: flex;
+    align-items: center;
+    gap: 0;
+    border: 1px solid var(--line);
+    border-radius: 4px;
+    overflow: hidden;
+    width: fit-content;
+  }
+  .qty-btn {
+    background: var(--panel-2);
+    border: none;
+    color: var(--text);
+    font-family: var(--mono);
+    font-size: 18px;
+    width: 42px;
+    height: 42px;
+    cursor: pointer;
+  }
+  .qty-btn:hover { background: #1e2430; }
+  .qty-btn:focus-visible, button:focus-visible, input:focus-visible {
+    outline: 2px solid var(--gold);
+    outline-offset: 2px;
+  }
+  .qty-display {
+    font-family: var(--mono);
+    font-size: 18px;
+    width: 52px;
+    text-align: center;
+    color: var(--text);
+  }
+
+  .total-line {
+    font-family: var(--mono);
+    font-size: 13px;
+    color: var(--text-dim);
+    margin-top: 16px;
+    display: flex;
+    justify-content: space-between;
+    max-width: 260px;
+  }
+  .total-line strong {
+    color: var(--gold);
+    font-size: 15px;
+  }
+
+  .mint-btn {
+    width: 100%;
+    margin-top: 20px;
+    background: var(--gold);
+    color: #14110a;
+    border: none;
+    border-radius: 4px;
+    padding: 14px;
+    font-family: var(--mono);
+    font-weight: 700;
+    font-size: 14px;
+    letter-spacing: 1px;
+    cursor: pointer;
+    transition: background 0.15s ease;
+  }
+  .mint-btn:hover:not(:disabled) { background: #e8c34a; }
+  .mint-btn:disabled {
+    background: var(--panel-2);
+    color: var(--text-dim);
+    cursor: not-allowed;
+  }
+
+  .console {
+    background: #05070a;
+    border: 1px solid var(--line);
+    border-radius: 4px;
+    padding: 14px 16px;
+    font-family: var(--mono);
+    font-size: 12px;
+    color: var(--green);
+    height: 170px;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column-reverse;
+  }
+  .console-line { margin-bottom: 6px; }
+  .console-line.err { color: var(--red); }
+  .console-line.dim { color: var(--text-dim); }
+  .console-line::before { content: '> '; color: var(--gold-dim); }
+
+  footer {
+    text-align: center;
+    padding: 24px;
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--text-dim);
+    border-top: 1px solid var(--line);
+  }
+  footer a { color: var(--gold); text-decoration: none; }
+</style>
+</head>
+<body>
+
+<div class="ticker-wrap">
+  <div class="ticker-track" id="tickerTrack">
+    <!-- populated by JS, duplicated once for seamless loop -->
+  </div>
+</div>
+
+<header>
+  <div class="logo">STONK<span>BIZ</span></div>
+  <div class="network-pill"><span class="dot"></span> BASE MAINNET</div>
+</header>
+
+<section class="hero">
+  <div>
+    <div class="eyebrow">3,444 SUITS. ONE MARKET.</div>
+    <h1>EVERY TOKEN<br>IS A <span class="accent">POSITION.</span></h1>
+    <p class="sub">3,444 fully on-chain traits — background, body tier, accessory — settled on Base. No off-chain reveal games. What you mint is what's already priced in.</p>
+    <div class="stat-row">
+      <div>
+        <div class="stat-label">PRICE</div>
+        <div class="stat-value gold" id="priceStat">—</div>
+      </div>
+      <div>
+        <div class="stat-label">MINTED</div>
+        <div class="stat-value" id="supplyStat">—</div>
+      </div>
+      <div>
+        <div class="stat-label">MAX / TX</div>
+        <div class="stat-value">10</div>
+      </div>
+    </div>
+  </div>
+  <div class="portrait-frame">
+    <img src="base.png" alt="StonkBiz base character" onerror="this.style.background='#1a1e28'">
+    <div class="portrait-caption">
+      <span>REF// STONKBIZ-3444</span>
+      <span>BASE-L2</span>
+    </div>
+  </div>
+</section>
+
+<section class="panel-wrap">
+  <div class="ticket">
+    <div class="ticket-head">
+      <span>ORDER TICKET</span>
+      <span id="mintStatusLabel">CHECKING STATUS...</span>
+    </div>
+    <div class="ticket-body">
+      <div>
+        <div class="field-label">QUANTITY</div>
+        <div class="qty-control">
+          <button class="qty-btn" id="qtyMinus" aria-label="Decrease quantity">−</button>
+          <div class="qty-display" id="qtyDisplay">1</div>
+          <button class="qty-btn" id="qtyPlus" aria-label="Increase quantity">+</button>
+        </div>
+        <div class="total-line">
+          <span>TOTAL DUE</span>
+          <strong id="totalDue">—</strong>
+        </div>
+        <button class="mint-btn" id="actionBtn">CONNECT WALLET</button>
+      </div>
+      <div>
+        <div class="field-label">TRANSACTION LOG</div>
+        <div class="console" id="console">
+          <div class="console-line dim">awaiting connection...</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<footer>
+  CONTRACT <a id="contractLink" href="#" target="_blank">0x4269...92D3</a> · VERIFIED ON BASESCAN
+</footer>
+
+<script>
+const CONTRACT_ADDRESS = "0x4269b461DcC2285F21f1c56fEb9239a093D392D3";
+const BASE_CHAIN_ID = 8453n;
+const BASE_CHAIN_HEX = "0x2105";
+
+const ABI = [
+  "function mint(uint256 qty) external payable",
+  "function mintPrice() view returns (uint256)",
+  "function mintActive() view returns (bool)",
+  "function totalSupply() view returns (uint256)",
+  "function MAX_SUPPLY() view returns (uint256)",
+  "function MAX_PER_TX() view returns (uint256)"
+];
+
+let provider, signer, contract, readContract;
+let qty = 1;
+let mintPriceWei = 0n;
+let maxPerTx = 10;
+let maxSupply = 3444;
+
+const els = {
+  tickerTrack: document.getElementById('tickerTrack'),
+  priceStat: document.getElementById('priceStat'),
+  supplyStat: document.getElementById('supplyStat'),
+  mintStatusLabel: document.getElementById('mintStatusLabel'),
+  qtyDisplay: document.getElementById('qtyDisplay'),
+  qtyMinus: document.getElementById('qtyMinus'),
+  qtyPlus: document.getElementById('qtyPlus'),
+  totalDue: document.getElementById('totalDue'),
+  actionBtn: document.getElementById('actionBtn'),
+  console: document.getElementById('console'),
+  contractLink: document.getElementById('contractLink'),
+};
+
+els.contractLink.href = `https://basescan.org/address/${CONTRACT_ADDRESS}`;
+
+function log(msg, cls) {
+  const line = document.createElement('div');
+  line.className = 'console-line' + (cls ? ' ' + cls : '');
+  line.textContent = msg;
+  els.console.prepend(line);
+}
+
+function updateTotal() {
+  if (mintPriceWei > 0n) {
+    const total = mintPriceWei * BigInt(qty);
+    els.totalDue.textContent = ethers.formatEther(total) + ' ETH';
+  }
+}
+
+function setQty(n) {
+  qty = Math.max(1, Math.min(maxPerTx, n));
+  els.qtyDisplay.textContent = qty;
+  updateTotal();
+}
+
+els.qtyMinus.addEventListener('click', () => setQty(qty - 1));
+els.qtyPlus.addEventListener('click', () => setQty(qty + 1));
+
+async function loadReadOnlyData() {
+  try {
+    const rpcProvider = new ethers.JsonRpcProvider("https://mainnet.base.org");
+    readContract = new ethers.Contract(CONTRACT_ADDRESS, ABI, rpcProvider);
+
+    const [price, active, supply, max, perTx] = await Promise.all([
+      readContract.mintPrice(),
+      readContract.mintActive(),
+      readContract.totalSupply(),
+      readContract.MAX_SUPPLY(),
+      readContract.MAX_PER_TX(),
+    ]);
+
+    mintPriceWei = price;
+    maxSupply = Number(max);
+    maxPerTx = Number(perTx);
+
+    els.priceStat.textContent = ethers.formatEther(price) + ' ETH';
+    els.supplyStat.textContent = `${supply} / ${max}`;
+    els.mintStatusLabel.textContent = active ? 'MINT LIVE' : 'MINT CLOSED';
+    els.mintStatusLabel.style.color = active ? 'var(--green)' : 'var(--red)';
+
+    buildTicker(ethers.formatEther(price), supply.toString(), max.toString(), active);
+    updateTotal();
+
+    if (!active) {
+      els.actionBtn.disabled = true;
+      els.actionBtn.textContent = 'MINT NOT LIVE';
+    }
+  } catch (e) {
+    log('failed to load contract data: ' + e.message, 'err');
+  }
+}
+
+function buildTicker(price, supply, max, active) {
+  const remaining = Number(max) - Number(supply);
+  const parts = [
+    `<span class="gold">STONKBIZ</span>`,
+    `<span>PRICE ${price} ETH</span>`,
+    `<span class="up">MINTED ${supply}/${max}</span>`,
+    `<span>${remaining} REMAINING</span>`,
+    `<span class="${active ? 'up' : ''}">${active ? 'MINT LIVE ▲' : 'MINT CLOSED'}</span>`,
+    `<span>BASE L2 · GAS OPTIMIZED</span>`,
+  ];
+  const content = parts.map(p => `<span>${p}</span>`).join('');
+  els.tickerTrack.innerHTML = content + content; // duplicate for seamless scroll
+}
+
+async function connectWallet() {
+  if (!window.ethereum) {
+    log('no wallet found — install MetaMask, Rabby, or Coinbase Wallet', 'err');
+    window.open('https://metamask.io', '_blank');
+    return;
+  }
+  try {
+    provider = new ethers.BrowserProvider(window.ethereum);
+    await provider.send('eth_requestAccounts', []);
+    signer = await provider.getSigner();
+
+    const network = await provider.getNetwork();
+    if (network.chainId !== BASE_CHAIN_ID) {
+      log('wrong network detected — switching to Base...', 'dim');
+      try {
+        await window.ethereum.request({
+          method: 'wallet_switchEthereumChain',
+          params: [{ chainId: BASE_CHAIN_HEX }],
+        });
+      } catch (switchError) {
+        if (switchError.code === 4902) {
+          await window.ethereum.request({
+            method: 'wallet_addEthereumChain',
+            params: [{
+              chainId: BASE_CHAIN_HEX,
+              chainName: 'Base',
+              nativeCurrency: { name: 'Ether', symbol: 'ETH', decimals: 18 },
+              rpcUrls: ['https://mainnet.base.org'],
+              blockExplorerUrls: ['https://basescan.org'],
+            }],
+          });
+        } else {
+          throw switchError;
+        }
+      }
+      provider = new ethers.BrowserProvider(window.ethereum);
+      signer = await provider.getSigner();
+    }
+
+    contract = new ethers.Contract(CONTRACT_ADDRESS, ABI, signer);
+    const addr = await signer.getAddress();
+    log(`connected: ${addr.slice(0,6)}...${addr.slice(-4)}`);
+
+    els.actionBtn.textContent = 'MINT';
+    els.actionBtn.onclick = doMint;
+  } catch (e) {
+    log('connection failed: ' + (e.reason || e.message), 'err');
+  }
+}
+
+async function doMint() {
+  if (!contract) return;
+  els.actionBtn.disabled = true;
+  els.actionBtn.textContent = 'CONFIRM IN WALLET...';
+  try {
+    const value = mintPriceWei * BigInt(qty);
+    log(`submitting mint for ${qty} token(s)...`, 'dim');
+    const tx = await contract.mint(qty, { value });
+    log(`tx sent: ${tx.hash.slice(0,10)}...`, 'dim');
+    els.actionBtn.textContent = 'CONFIRMING...';
+    await tx.wait();
+    log(`mint confirmed! welcome to StonkBiz.`);
+    els.actionBtn.textContent = 'MINT ANOTHER';
+    els.actionBtn.disabled = false;
+    loadReadOnlyData();
+  } catch (e) {
+    log('mint failed: ' + (e.reason || e.shortMessage || e.message), 'err');
+    els.actionBtn.textContent = 'MINT';
+    els.actionBtn.disabled = false;
+  }
+}
+
+els.actionBtn.addEventListener('click', () => {
+  if (!signer) connectWallet();
+  else doMint();
+});
+
+loadReadOnlyData();
+setInterval(loadReadOnlyData, 30000);
+</script>
+
+</body>
+</html>
