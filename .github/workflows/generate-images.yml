@@ -17,7 +17,7 @@ jobs:
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add docs/images docs/metadata
+          git add -A
           git diff --staged --quiet || git commit -m "Generate real trait images and metadata"
           git pull --rebase origin main
           git push
