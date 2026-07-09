@@ -15,7 +15,7 @@ const { keccak256, solidityPacked } = require("ethers");
 
 // ------ CONFIGURABLE ------
 const IMG_SIZE = 1536;
-const OUTPUT_DIR = path.resolve(__dirname, "..", "output");
+const OUTPUT_DIR = path.resolve(__dirname, "..", "docs");
 const MAX_SUPPLY = 3444;
 
 // Adjust these if accessories don't align with your character
@@ -140,11 +140,11 @@ async function main() {
   const baseArg = process.argv[2];
   if (baseArg) {
     basePath = path.resolve(baseArg);
-  } else {
-    // Auto-detect base image in project root
+} else {
+    // Auto-detect base image in docs folder (GitHub Pages root)
     const candidates = ["base.png", "base.jpg", "base.jpeg"];
     for (const c of candidates) {
-      const p = path.resolve(__dirname, "..", c);
+      const p = path.resolve(__dirname, "..", "docs", c);
       if (fs.existsSync(p)) { basePath = p; break; }
     }
   }
@@ -233,7 +233,7 @@ async function main() {
     const metadata = {
       name: `StonkBiz #${tokenId}`,
       description: "StonkBiz — Base L2 NFT Collection",
-      image: `ipfs://__CID__/${tokenId}.png`,
+      image: `https://yusufking-dev.github.io/stonkbiz-nft/images/${tokenId}.png`,
       attributes: [
         { trait_type: "Background", value: bgName },
         { trait_type: "Body", value: bodyName },
