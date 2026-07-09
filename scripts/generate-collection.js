@@ -20,7 +20,7 @@ const MAX_SUPPLY = 3444;
 
 // Adjust these if accessories don't align with your character
 const POSITIONS = {
-  glasses: { x: 0.5, y: 0.40, scale: 0.38 },   // over the eyes
+  glasses: { x: 0.44, y: 0.39, scale: 0.34 },  // over the eyes
   chain:   { x: 0.5, y: 0.55, scale: 0.30 },   // neck area
   crown:   { x: 0.5, y: 0.10, scale: 0.25 },   // top of head
 };
@@ -73,7 +73,7 @@ function getTraitIndices(tokenId) {
 // ------ SVG ACCESSORY GENERATORS ------
 function svgGlasses(w, h) {
   const lensR = w * 0.10;
-  const bridgeW = w * 0.14;
+  const bridgeW = w * 0.11;
   const centerY = h * 0.5;
   const leftX = w * 0.5 - lensR - bridgeW / 2;
   const rightX = w * 0.5 + bridgeW / 2;
