@@ -5,7 +5,7 @@
  * Usage:
  *   node scripts/generate-collection.js [path-to-base-image]
  *
- * If no path is given, looks for base.png / base.jpg / base.jpeg in the project root.
+ * If no path is given, looks for base.png / base.jpg / base.jpeg in docs/.
  */
 
 const fs = require("fs");
@@ -20,7 +20,7 @@ const MAX_SUPPLY = 3444;
 
 // Adjust these if accessories don't align with your character
 const POSITIONS = {
-  glasses: { x: 0.5, y: 0.38, scale: 0.22 },   // centered, upper face
+  glasses: { x: 0.5, y: 0.31, scale: 0.32 },   // over the eyes
   chain:   { x: 0.5, y: 0.55, scale: 0.30 },   // neck area
   crown:   { x: 0.5, y: 0.10, scale: 0.25 },   // top of head
 };
@@ -140,7 +140,7 @@ async function main() {
   const baseArg = process.argv[2];
   if (baseArg) {
     basePath = path.resolve(baseArg);
-} else {
+  } else {
     // Auto-detect base image in docs folder (GitHub Pages root)
     const candidates = ["base.png", "base.jpg", "base.jpeg"];
     for (const c of candidates) {
@@ -149,7 +149,7 @@ async function main() {
     }
   }
   if (!basePath || !fs.existsSync(basePath)) {
-    console.error("Base image not found. Place base.png (or .jpg) in the project root.");
+    console.error("Base image not found. Place base.png (or .jpg) in docs/.");
     process.exit(1);
   }
 
@@ -160,9 +160,9 @@ async function main() {
   fs.mkdirSync(metaDir, { recursive: true });
 
   const baseBuffer = await sharp(fs.readFileSync(basePath))
-  .resize(IMG_SIZE, IMG_SIZE, { fit: 'contain' })
-  .png()
-  .toBuffer();
+    .resize(IMG_SIZE, IMG_SIZE, { fit: "contain", background: { r: 0, g: 0, b: 0, alpha: 0 } })
+    .png()
+    .toBuffer();
 
   console.log(`Generating ${MAX_SUPPLY} tokens...`);
 
@@ -175,26 +175,14 @@ async function main() {
     // Build image
     let layers = [];
 
-    // 1) Colored background
-    const bgColor = BG_COLORS[traits.background];
-    layers.push({
-      input: Buffer.from(
-        `<svg width="${IMG_SIZE}" height="${IMG_SIZE}" xmlns="http://www.w3.org/2000/svg">
-          <rect width="100%" height="100%" fill="${bgColor}"/>
-        </svg>`
-      ),
-      top: 0,
-      left: 0,
-    });
-
-    // 2) Base image
+    // 1) Base image
     layers.push({
       input: baseBuffer,
       top: 0,
       left: 0,
     });
 
-    // 3) Accessory overlay
+    // 2) Accessory overlay
     if (traits.accessory === 2) {
       // Glasses
       const pos = POSITIONS.glasses;
@@ -225,10 +213,11 @@ async function main() {
     }
     // Accessory 0 (None) and 1 (Tie) — no overlay (tie is part of base art)
 
-    // Composite and save
+    // Composite and save (background color fills canvas, then base + accessory on top)
+    const bgColor = BG_COLORS[traits.background];
     const imgPath = path.join(imgDir, `${tokenId}.png`);
     await sharp({ create: { width: IMG_SIZE, height: IMG_SIZE, channels: 4, background: bgColor } })
-      .composite(layers.slice(1))
+      .composite(layers)
       .png()
       .toFile(imgPath);
 
@@ -253,8 +242,6 @@ async function main() {
   console.log(`\nDone! Generated ${MAX_SUPPLY} images + metadata.`);
   console.log(`  Images:   ${path.join(OUTPUT_DIR, "images")}`);
   console.log(`  Metadata: ${path.join(OUTPUT_DIR, "metadata")}`);
-  console.log(`\nNext step: Upload the metadata folder to Pinata.`);
-  console.log(`  npm run upload`);
 }
 
 main().catch((e) => {
