@@ -1,7 +1,7 @@
 {
   "name": "StonkBiz #1653",
   "description": "StonkBiz — Base L2 NFT Collection",
-  "image": "ipfs://QmSp5c3uNQG2wH42u8yFuMimfcuQpEahw1DDXLPg1nan9e/1653.png",
+  "image": "https://yusufking-dev.github.io/stonkbiz-nft/base.png",
   "attributes": [
     {
       "trait_type": "Background",
